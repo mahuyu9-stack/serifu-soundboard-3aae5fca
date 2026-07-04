@@ -1,0 +1,432 @@
+"use strict";
+
+/*
+ * セリフボード app.js
+ * 音声データ(Blob)はIndexedDBに保存する。localStorageは文字列しか
+ * 保存できずサイズ上限も低いため、音声のような大きめバイナリには不向き。
+ */
+
+const DB_NAME = "serifuSoundboardDB";
+const DB_VERSION = 1;
+const STORE_NAME = "phrases";
+
+let db = null;
+let phrases = []; // 表示中の全セリフ(order順)
+let sortMode = false;
+
+// 録音関連のワーキング状態
+let mediaStream = null;
+let mediaRecorder = null;
+let recordedChunks = [];
+let recordTimerHandle = null;
+let recordSeconds = 0;
+let previewBlob = null;
+let previewMimeType = "";
+let retakeTargetId = null; // nullなら新規保存、値があれば録り直し対象のid
+
+// 長押し判定用
+const LONG_PRESS_MS = 500;
+let pressTimer = null;
+let longPressFired = false;
+let pressTargetId = null;
+
+// 再生中の音声を1つだけに保つための参照
+let currentAudio = null;
+let currentAudioUrl = null;
+
+// ---------- IndexedDB ----------
+
+function openDB() {
+  return new Promise((resolve, reject) => {
+    const req = indexedDB.open(DB_NAME, DB_VERSION);
+    req.onupgradeneeded = () => {
+      const database = req.result;
+      if (!database.objectStoreNames.contains(STORE_NAME)) {
+        const store = database.createObjectStore(STORE_NAME, {
+          keyPath: "id",
+          autoIncrement: true,
+        });
+        store.createIndex("order", "order", { unique: false });
+      }
+    };
+    req.onsuccess = () => resolve(req.result);
+    req.onerror = () => reject(req.error);
+  });
+}
+
+function dbGetAll() {
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction(STORE_NAME, "readonly");
+    const req = tx.objectStore(STORE_NAME).getAll();
+    req.onsuccess = () => resolve(req.result);
+    req.onerror = () => reject(req.error);
+  });
+}
+
+function dbPut(record) {
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction(STORE_NAME, "readwrite");
+    const req = tx.objectStore(STORE_NAME).put(record);
+    req.onsuccess = () => resolve(req.result);
+    req.onerror = () => reject(req.error);
+  });
+}
+
+function dbDelete(id) {
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction(STORE_NAME, "readwrite");
+    const req = tx.objectStore(STORE_NAME).delete(id);
+    req.onsuccess = () => resolve();
+    req.onerror = () => reject(req.error);
+  });
+}
+
+async function loadPhrases() {
+  const all = await dbGetAll();
+  all.sort((a, b) => a.order - b.order);
+  phrases = all;
+  renderGrid();
+}
+
+// ---------- 描画 ----------
+
+function renderGrid() {
+  const grid = document.getElementById("grid");
+  const emptyMessage = document.getElementById("emptyMessage");
+  grid.innerHTML = "";
+
+  if (phrases.length === 0) {
+    emptyMessage.hidden = false;
+    return;
+  }
+  emptyMessage.hidden = true;
+
+  phrases.forEach((phrase, index) => {
+    const cell = document.createElement("div");
+    cell.className = "phrase-cell";
+
+    const btn = document.createElement("button");
+    btn.className = "phrase-btn";
+    btn.type = "button";
+    btn.textContent = phrase.name;
+
+    // タップ=即再生、長押し=編集。pointer系イベントで両方を1つのボタンから判定する。
+    btn.addEventListener("pointerdown", (e) => {
+      if (sortMode) return;
+      longPressFired = false;
+      pressTargetId = phrase.id;
+      pressTimer = setTimeout(() => {
+        longPressFired = true;
+        openEditModal(phrase.id);
+      }, LONG_PRESS_MS);
+    });
+    const clearPress = () => {
+      if (pressTimer) {
+        clearTimeout(pressTimer);
+        pressTimer = null;
+      }
+    };
+    btn.addEventListener("pointerup", () => {
+      if (sortMode) return;
+      clearPress();
+      if (!longPressFired && pressTargetId === phrase.id) {
+        playPhrase(phrase.id);
+      }
+    });
+    btn.addEventListener("pointerleave", clearPress);
+    btn.addEventListener("pointercancel", clearPress);
+
+    cell.appendChild(btn);
+
+    // 並び替えモード時だけ表示する上下ボタン
+    const arrows = document.createElement("div");
+    arrows.className = "sort-arrows";
+
+    const upBtn = document.createElement("button");
+    upBtn.className = "sort-arrow-btn";
+    upBtn.type = "button";
+    upBtn.textContent = "↑";
+    upBtn.disabled = index === 0;
+    upBtn.addEventListener("click", () => movePhrase(index, index - 1));
+
+    const downBtn = document.createElement("button");
+    downBtn.className = "sort-arrow-btn";
+    downBtn.type = "button";
+    downBtn.textContent = "↓";
+    downBtn.disabled = index === phrases.length - 1;
+    downBtn.addEventListener("click", () => movePhrase(index, index + 1));
+
+    arrows.appendChild(upBtn);
+    arrows.appendChild(downBtn);
+    cell.appendChild(arrows);
+
+    grid.appendChild(cell);
+  });
+}
+
+async function movePhrase(fromIndex, toIndex) {
+  const [moved] = phrases.splice(fromIndex, 1);
+  phrases.splice(toIndex, 0, moved);
+  // order値を並び直した配列のindexで振り直してDBに反映
+  await Promise.all(
+    phrases.map((p, i) => {
+      p.order = i;
+      return dbPut(p);
+    })
+  );
+  renderGrid();
+}
+
+// ---------- 再生 ----------
+
+function playPhrase(id) {
+  const phrase = phrases.find((p) => p.id === id);
+  if (!phrase) return;
+
+  // 前の再生が残っていたら止めてから新しい音声を鳴らす(子供の前での連打対策)
+  if (currentAudio) {
+    currentAudio.pause();
+    currentAudio = null;
+  }
+  if (currentAudioUrl) {
+    URL.revokeObjectURL(currentAudioUrl);
+    currentAudioUrl = null;
+  }
+
+  const url = URL.createObjectURL(phrase.blob);
+  currentAudioUrl = url;
+  const audio = new Audio(url);
+  currentAudio = audio;
+  audio.play().catch((err) => {
+    console.error("再生に失敗しました", err);
+  });
+}
+
+// ---------- 録音まわり ----------
+
+function pickMimeType() {
+  // iOS Safariはaudio/mp4系のみ対応、それ以外はwebmが安定して使える
+  const candidates = [
+    "audio/mp4",
+    "audio/webm;codecs=opus",
+    "audio/webm",
+  ];
+  for (const type of candidates) {
+    if (window.MediaRecorder && MediaRecorder.isTypeSupported(type)) {
+      return type;
+    }
+  }
+  return "";
+}
+
+function showRecordStage(stage) {
+  document.getElementById("recordStageIdle").hidden = stage !== "idle";
+  document.getElementById("recordStageRecording").hidden = stage !== "recording";
+  document.getElementById("recordStagePreview").hidden = stage !== "preview";
+}
+
+function openRecordModal(targetId) {
+  retakeTargetId = targetId ?? null;
+  document.getElementById("recordModalTitle").textContent = retakeTargetId
+    ? "セリフを録り直す"
+    : "新しいセリフを録音";
+  document.getElementById("recordError").hidden = true;
+  document.getElementById("phraseNameInput").value = "";
+  previewBlob = null;
+  showRecordStage("idle");
+  document.getElementById("recordModal").hidden = false;
+}
+
+function closeRecordModal() {
+  stopMediaStream();
+  document.getElementById("recordModal").hidden = true;
+}
+
+function stopMediaStream() {
+  if (recordTimerHandle) {
+    clearInterval(recordTimerHandle);
+    recordTimerHandle = null;
+  }
+  if (mediaStream) {
+    mediaStream.getTracks().forEach((t) => t.stop());
+    mediaStream = null;
+  }
+  mediaRecorder = null;
+}
+
+function showRecordError(message) {
+  const el = document.getElementById("recordError");
+  el.textContent = message;
+  el.hidden = false;
+}
+
+async function startRecording() {
+  try {
+    mediaStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+  } catch (err) {
+    showRecordError("マイクを使えませんでした。設定でマイク権限を許可してください。");
+    return;
+  }
+
+  const mimeType = pickMimeType();
+  previewMimeType = mimeType;
+  recordedChunks = [];
+  try {
+    mediaRecorder = mimeType
+      ? new MediaRecorder(mediaStream, { mimeType })
+      : new MediaRecorder(mediaStream);
+  } catch (err) {
+    showRecordError("この端末では録音に対応していません。");
+    stopMediaStream();
+    return;
+  }
+
+  mediaRecorder.ondataavailable = (e) => {
+    if (e.data && e.data.size > 0) recordedChunks.push(e.data);
+  };
+  mediaRecorder.onstop = () => {
+    previewBlob = new Blob(recordedChunks, { type: mediaRecorder.mimeType || previewMimeType });
+    const audioEl = document.getElementById("previewAudio");
+    audioEl.src = URL.createObjectURL(previewBlob);
+    showRecordStage("preview");
+  };
+
+  mediaRecorder.start();
+  recordSeconds = 0;
+  document.getElementById("recTimer").textContent = "0:00";
+  recordTimerHandle = setInterval(() => {
+    recordSeconds += 1;
+    const m = Math.floor(recordSeconds / 60);
+    const s = String(recordSeconds % 60).padStart(2, "0");
+    document.getElementById("recTimer").textContent = `${m}:${s}`;
+  }, 1000);
+
+  showRecordStage("recording");
+}
+
+function stopRecording() {
+  if (recordTimerHandle) {
+    clearInterval(recordTimerHandle);
+    recordTimerHandle = null;
+  }
+  if (mediaRecorder && mediaRecorder.state !== "inactive") {
+    mediaRecorder.stop();
+  }
+  if (mediaStream) {
+    mediaStream.getTracks().forEach((t) => t.stop());
+  }
+}
+
+async function savePhrase() {
+  const name = document.getElementById("phraseNameInput").value.trim();
+  if (!name) {
+    showRecordError("セリフの名前を入力してください。");
+    return;
+  }
+  if (!previewBlob) {
+    showRecordError("録音データがありません。");
+    return;
+  }
+
+  if (retakeTargetId) {
+    // 録り直し: 既存レコードの音声だけ差し替え、名前も更新できるようにする
+    const target = phrases.find((p) => p.id === retakeTargetId);
+    target.blob = previewBlob;
+    target.mimeType = previewMimeType;
+    target.name = name;
+    await dbPut(target);
+  } else {
+    const maxOrder = phrases.length ? Math.max(...phrases.map((p) => p.order)) : -1;
+    const record = {
+      name,
+      blob: previewBlob,
+      mimeType: previewMimeType,
+      order: maxOrder + 1,
+      createdAt: Date.now(),
+    };
+    await dbPut(record);
+  }
+
+  await loadPhrases();
+  closeRecordModal();
+}
+
+// ---------- 編集モーダル ----------
+
+let editTargetId = null;
+
+function openEditModal(id) {
+  editTargetId = id;
+  const phrase = phrases.find((p) => p.id === id);
+  document.getElementById("editNameInput").value = phrase.name;
+  document.getElementById("editModal").hidden = false;
+}
+
+function closeEditModal() {
+  document.getElementById("editModal").hidden = true;
+  editTargetId = null;
+}
+
+async function saveEditedName() {
+  const name = document.getElementById("editNameInput").value.trim();
+  if (!name || editTargetId === null) return;
+  const phrase = phrases.find((p) => p.id === editTargetId);
+  phrase.name = name;
+  await dbPut(phrase);
+  await loadPhrases();
+  closeEditModal();
+}
+
+async function deletePhrase() {
+  if (editTargetId === null) return;
+  if (!confirm("このセリフを削除しますか？")) return;
+  await dbDelete(editTargetId);
+  await loadPhrases();
+  closeEditModal();
+}
+
+// ---------- 並び替えモード ----------
+
+function toggleSortMode() {
+  sortMode = !sortMode;
+  document.body.classList.toggle("sort-mode", sortMode);
+  document.getElementById("sortModeBtn").classList.toggle("active", sortMode);
+}
+
+// ---------- 初期化 ----------
+
+function bindEvents() {
+  document.getElementById("recordOpenBtn").addEventListener("click", () => openRecordModal(null));
+  document.getElementById("recordCancelBtn").addEventListener("click", closeRecordModal);
+  document.getElementById("startRecBtn").addEventListener("click", startRecording);
+  document.getElementById("stopRecBtn").addEventListener("click", stopRecording);
+  document.getElementById("retakeBtn").addEventListener("click", () => showRecordStage("idle"));
+  document.getElementById("saveBtn").addEventListener("click", savePhrase);
+
+  document.getElementById("sortModeBtn").addEventListener("click", toggleSortMode);
+
+  document.getElementById("editCloseBtn").addEventListener("click", closeEditModal);
+  document.getElementById("editSaveNameBtn").addEventListener("click", saveEditedName);
+  document.getElementById("editDeleteBtn").addEventListener("click", deletePhrase);
+  document.getElementById("editRetakeBtn").addEventListener("click", () => {
+    const id = editTargetId;
+    closeEditModal();
+    openRecordModal(id);
+  });
+}
+
+async function init() {
+  db = await openDB();
+  await loadPhrases();
+  bindEvents();
+
+  if ("serviceWorker" in navigator) {
+    window.addEventListener("load", () => {
+      navigator.serviceWorker.register("sw.js").catch((err) => {
+        console.error("Service Workerの登録に失敗しました", err);
+      });
+    });
+  }
+}
+
+init();

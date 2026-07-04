@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
+<meta name="robots" content="noindex, nofollow">
+<title>セリフボード</title>
+<link rel="manifest" href="manifest.json">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="theme-color" content="#4A7C59">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<header class="app-header">
+  <h1>セリフボード</h1>
+  <div class="header-buttons">
+    <button id="sortModeBtn" class="header-btn" type="button">並び替え</button>
+    <button id="recordOpenBtn" class="header-btn header-btn-primary" type="button">＋ 録音</button>
+  </div>
+</header>
+
+<main>
+  <div id="grid" class="grid"></div>
+  <p id="emptyMessage" class="empty-message" hidden>
+    まだセリフがありません。<br>「＋ 録音」から最初のセリフを作ってください。
+  </p>
+</main>
+
+<!-- 録音モーダル -->
+<div id="recordModal" class="modal-overlay" hidden>
+  <div class="modal">
+    <h2 id="recordModalTitle">新しいセリフを録音</h2>
+
+    <div id="recordStageIdle" class="record-stage">
+      <button id="startRecBtn" class="big-btn record-btn" type="button">● 録音開始</button>
+    </div>
+
+    <div id="recordStageRecording" class="record-stage" hidden>
+      <p class="rec-timer"><span id="recTimer">0:00</span> 録音中…</p>
+      <button id="stopRecBtn" class="big-btn stop-btn" type="button">■ 停止</button>
+    </div>
+
+    <div id="recordStagePreview" class="record-stage" hidden>
+      <audio id="previewAudio" controls></audio>
+      <label class="field-label" for="phraseNameInput">セリフの名前</label>
+      <input id="phraseNameInput" type="text" maxlength="20" placeholder="例：歯磨きして">
+      <div class="modal-actions">
+        <button id="retakeBtn" class="text-btn" type="button">録り直す</button>
+        <button id="saveBtn" class="big-btn save-btn" type="button">保存</button>
+      </div>
+    </div>
+
+    <p id="recordError" class="error-message" hidden></p>
+    <button id="recordCancelBtn" class="text-btn modal-close" type="button">キャンセル</button>
+  </div>
+</div>
+
+<!-- 編集モーダル（長押しで開く） -->
+<div id="editModal" class="modal-overlay" hidden>
+  <div class="modal">
+    <h2>セリフを編集</h2>
+    <label class="field-label" for="editNameInput">名前</label>
+    <input id="editNameInput" type="text" maxlength="20">
+    <div class="modal-actions modal-actions-column">
+      <button id="editSaveNameBtn" class="big-btn save-btn" type="button">名前を保存</button>
+      <button id="editRetakeBtn" class="big-btn" type="button">録り直す</button>
+      <button id="editDeleteBtn" class="big-btn delete-btn" type="button">削除</button>
+    </div>
+    <button id="editCloseBtn" class="text-btn modal-close" type="button">閉じる</button>
+  </div>
+</div>
+
+<script src="app.js"></script>
+</body>
+</html>

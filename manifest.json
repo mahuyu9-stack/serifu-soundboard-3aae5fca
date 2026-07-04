@@ -1,0 +1,15 @@
+{
+  "name": "セリフボード",
+  "short_name": "セリフボード",
+  "description": "毎日同じセリフをボタン一発で再生する家族用サウンドボード",
+  "start_url": "./index.html",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#f4f1ea",
+  "theme_color": "#4A7C59",
+  "icons": [
+    { "src": "icon-192.png", "sizes": "192x192", "type": "image/png" },
+    { "src": "icon-512.png", "sizes": "512x512", "type": "image/png" }
+  ]
+}
