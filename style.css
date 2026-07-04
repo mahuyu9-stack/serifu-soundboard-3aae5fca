@@ -31,6 +31,29 @@ body {
 .app-header h1 {
   font-size: 20px;
   margin: 0;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+/* ドット絵はブラウザの補間でぼやけるのでpixelatedで解像度を保つ */
+.perap-icon {
+  image-rendering: pixelated;
+}
+
+.perap-header {
+  width: 28px;
+  height: 28px;
+}
+
+.perap-recording {
+  width: 64px;
+  height: 64px;
+}
+
+.perap-empty {
+  width: 80px;
+  height: 80px;
 }
 
 .header-buttons {

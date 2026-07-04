@@ -15,7 +15,7 @@
 <body>
 
 <header class="app-header">
-  <h1>セリフボード</h1>
+  <h1><img src="perap.png" alt="ぺラップ" class="perap-icon perap-header">セリフボード</h1>
   <div class="header-buttons">
     <button id="sortModeBtn" class="header-btn" type="button">並び替え</button>
     <button id="recordOpenBtn" class="header-btn header-btn-primary" type="button">＋ 録音</button>
@@ -25,6 +25,7 @@
 <main>
   <div id="grid" class="grid"></div>
   <p id="emptyMessage" class="empty-message" hidden>
+    <img src="perap.png" alt="ぺラップ" class="perap-icon perap-empty"><br>
     まだセリフがありません。<br>「＋ 録音」から最初のセリフを作ってください。
   </p>
 </main>
@@ -39,6 +40,7 @@
     </div>
 
     <div id="recordStageRecording" class="record-stage" hidden>
+      <img src="perap.png" alt="ぺラップ" class="perap-icon perap-recording">
       <p class="rec-timer"><span id="recTimer">0:00</span> 録音中…</p>
       <button id="stopRecBtn" class="big-btn stop-btn" type="button">■ 停止</button>
     </div>

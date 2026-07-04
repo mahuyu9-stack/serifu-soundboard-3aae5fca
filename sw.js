@@ -1,7 +1,7 @@
 "use strict";
 
 // バージョンを上げるとキャッシュが総入れ替えされる。app shellを更新したら数字を上げること。
-const CACHE_NAME = "serifu-soundboard-v1";
+const CACHE_NAME = "serifu-soundboard-v2";
 const APP_SHELL = [
   "./",
   "./index.html",
@@ -11,6 +11,7 @@ const APP_SHELL = [
   "./icon-192.png",
   "./icon-512.png",
   "./apple-touch-icon.png",
+  "./perap.png",
 ];
 
 self.addEventListener("install", (event) => {
