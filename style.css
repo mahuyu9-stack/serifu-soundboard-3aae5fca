@@ -119,6 +119,17 @@ main {
   background: #eef7f0;
 }
 
+/* ループ再生中は枠を光らせて、もう一度押せば止まることが分かるようにする */
+.phrase-btn.playing {
+  box-shadow: 0 0 0 3px var(--green), 0 2px 6px rgba(0,0,0,0.12);
+  animation: playing-pulse 1s ease-in-out infinite;
+}
+
+@keyframes playing-pulse {
+  0%, 100% { background: white; }
+  50% { background: #eef7f0; }
+}
+
 .phrase-cell {
   position: relative;
 }

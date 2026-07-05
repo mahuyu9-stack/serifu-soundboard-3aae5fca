@@ -30,9 +30,11 @@ let pressTimer = null;
 let longPressFired = false;
 let pressTargetId = null;
 
-// 再生中の音声を1つだけに保つための参照
+// 再生中の音声を1つだけに保つための参照。ループ再生中のセリフidも保持し、
+// 同じボタンの再タップで停止できるようにする(トグル動作)
 let currentAudio = null;
 let currentAudioUrl = null;
+let currentPlayingId = null;
 
 // ---------- IndexedDB ----------
 
@@ -109,6 +111,8 @@ function renderGrid() {
     btn.className = "phrase-btn";
     btn.type = "button";
     btn.textContent = phrase.name;
+    btn.dataset.id = phrase.id;
+    if (phrase.id === currentPlayingId) btn.classList.add("playing");
 
     // タップ=即再生、長押し=編集。pointer系イベントで両方を1つのボタンから判定する。
     btn.addEventListener("pointerdown", (e) => {
@@ -180,10 +184,32 @@ async function movePhrase(fromIndex, toIndex) {
 // ---------- 再生 ----------
 
 function playPhrase(id) {
+  // 再生中のボタンをもう一度タップしたら停止(トグル)
+  if (currentPlayingId === id) {
+    stopPlayback();
+    return;
+  }
+
   const phrase = phrases.find((p) => p.id === id);
   if (!phrase) return;
 
   // 前の再生が残っていたら止めてから新しい音声を鳴らす(子供の前での連打対策)
+  stopPlayback();
+
+  const url = URL.createObjectURL(phrase.blob);
+  currentAudioUrl = url;
+  const audio = new Audio(url);
+  audio.loop = true;
+  currentAudio = audio;
+  currentPlayingId = id;
+  setPlayingButton(id);
+  audio.play().catch((err) => {
+    console.error("再生に失敗しました", err);
+    stopPlayback();
+  });
+}
+
+function stopPlayback() {
   if (currentAudio) {
     currentAudio.pause();
     currentAudio = null;
@@ -192,13 +218,13 @@ function playPhrase(id) {
     URL.revokeObjectURL(currentAudioUrl);
     currentAudioUrl = null;
   }
+  currentPlayingId = null;
+  setPlayingButton(null);
+}
 
-  const url = URL.createObjectURL(phrase.blob);
-  currentAudioUrl = url;
-  const audio = new Audio(url);
-  currentAudio = audio;
-  audio.play().catch((err) => {
-    console.error("再生に失敗しました", err);
+function setPlayingButton(id) {
+  document.querySelectorAll(".phrase-btn").forEach((btn) => {
+    btn.classList.toggle("playing", btn.dataset.id === String(id));
   });
 }
 
@@ -330,6 +356,7 @@ async function savePhrase() {
 
   if (retakeTargetId) {
     // 録り直し: 既存レコードの音声だけ差し替え、名前も更新できるようにする
+    if (currentPlayingId === retakeTargetId) stopPlayback();
     const target = phrases.find((p) => p.id === retakeTargetId);
     target.blob = previewBlob;
     target.mimeType = previewMimeType;
@@ -380,6 +407,7 @@ async function saveEditedName() {
 async function deletePhrase() {
   if (editTargetId === null) return;
   if (!confirm("このセリフを削除しますか？")) return;
+  if (currentPlayingId === editTargetId) stopPlayback();
   await dbDelete(editTargetId);
   await loadPhrases();
   closeEditModal();
