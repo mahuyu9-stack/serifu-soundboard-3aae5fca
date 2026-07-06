@@ -1,7 +1,7 @@
 "use strict";
 
 // バージョンを上げるとキャッシュが総入れ替えされる。app shellを更新したら数字を上げること。
-const CACHE_NAME = "serifu-soundboard-v4";
+const CACHE_NAME = "serifu-soundboard-v5";
 const APP_SHELL = [
   "./",
   "./index.html",

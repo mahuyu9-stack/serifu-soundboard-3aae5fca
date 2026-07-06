@@ -470,6 +470,30 @@ async function savePhrase() {
   closeRecordModal();
 }
 
+// ---------- 既存録音の一括無音カット ----------
+// 無音カット機能を追加する前に保存した録音には自動適用されないため、
+// 後からまとめてかけ直せるようにする。
+
+async function trimAllPhrases() {
+  if (phrases.length === 0) {
+    alert("セリフがまだありません。");
+    return;
+  }
+  if (!confirm(`保存済みの${phrases.length}件すべてに無音カットをかけ直します。よろしいですか？`)) return;
+
+  stopPlayback();
+
+  for (const phrase of phrases) {
+    const trimmed = await trimSilence(phrase.blob);
+    phrase.blob = trimmed;
+    phrase.mimeType = trimmed.type;
+    await dbPut(phrase);
+  }
+
+  await loadPhrases();
+  alert("無音カットが完了しました。");
+}
+
 // ---------- 編集モーダル ----------
 
 let editTargetId = null;
@@ -524,6 +548,7 @@ function bindEvents() {
   document.getElementById("saveBtn").addEventListener("click", savePhrase);
 
   document.getElementById("sortModeBtn").addEventListener("click", toggleSortMode);
+  document.getElementById("trimAllBtn").addEventListener("click", trimAllPhrases);
 
   document.getElementById("editCloseBtn").addEventListener("click", closeEditModal);
   document.getElementById("editSaveNameBtn").addEventListener("click", saveEditedName);
