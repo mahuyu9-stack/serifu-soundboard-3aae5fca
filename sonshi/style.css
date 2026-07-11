@@ -1,0 +1,344 @@
+/* 孫子に聞け ― 和風の配色(生成り地・墨文字・朱アクセント) */
+
+:root {
+  --washi: #F6F1E7;
+  --washi-deep: #EFE7D7;
+  --sumi: #2B2A26;
+  --sumi-soft: #5C574C;
+  --shu: #8C2F1B;
+  --shu-bright: #A63C24;
+  --kin: #8A6D2F;
+  --line: #D8CDB6;
+  --card: #FFFDF8;
+}
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  font-family: "Hiragino Mincho ProN", "Yu Mincho", "YuMincho", "Noto Serif JP", serif;
+  background: var(--washi);
+  color: var(--sumi);
+  line-height: 1.8;
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+/* ---------- ヘッダー ---------- */
+
+.app-header {
+  background: var(--shu);
+  color: #FBF6EC;
+  text-align: center;
+  padding: 1.4rem 1rem 0;
+}
+
+.app-header h1 {
+  font-size: 1.5rem;
+  letter-spacing: 0.3em;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.6rem;
+}
+
+.header-mark {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2.2rem;
+  height: 2.2rem;
+  border: 2px solid #FBF6EC;
+  border-radius: 50%;
+  font-size: 1.1rem;
+  letter-spacing: 0;
+  flex-shrink: 0;
+}
+
+.header-sub {
+  font-size: 0.8rem;
+  opacity: 0.85;
+  margin-top: 0.3rem;
+  letter-spacing: 0.1em;
+}
+
+.tabs {
+  display: flex;
+  justify-content: center;
+  gap: 0.5rem;
+  margin-top: 1rem;
+}
+
+.tab-btn {
+  font-family: inherit;
+  font-size: 0.95rem;
+  letter-spacing: 0.15em;
+  padding: 0.6rem 1.6rem;
+  border: none;
+  border-radius: 10px 10px 0 0;
+  background: rgba(251, 246, 236, 0.18);
+  color: #FBF6EC;
+  cursor: pointer;
+}
+
+.tab-btn.active {
+  background: var(--washi);
+  color: var(--shu);
+  font-weight: 700;
+}
+
+/* ---------- 本体 ---------- */
+
+main {
+  flex: 1;
+  width: 100%;
+  max-width: 680px;
+  margin: 0 auto;
+  padding: 1.2rem 1rem 2rem;
+}
+
+.field-label {
+  display: block;
+  font-size: 0.95rem;
+  font-weight: 700;
+  margin-bottom: 0.5rem;
+}
+
+textarea {
+  width: 100%;
+  font-family: inherit;
+  font-size: 1rem;
+  line-height: 1.7;
+  padding: 0.8rem;
+  border: 1.5px solid var(--line);
+  border-radius: 10px;
+  background: var(--card);
+  color: var(--sumi);
+  resize: vertical;
+}
+
+textarea:focus {
+  outline: none;
+  border-color: var(--shu);
+}
+
+.chips-label {
+  font-size: 0.8rem;
+  color: var(--sumi-soft);
+  margin: 0.9rem 0 0.4rem;
+}
+
+.chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.45rem;
+}
+
+.chip {
+  font-family: inherit;
+  font-size: 0.85rem;
+  padding: 0.35rem 0.85rem;
+  border: 1.5px solid var(--line);
+  border-radius: 999px;
+  background: var(--card);
+  color: var(--sumi-soft);
+  cursor: pointer;
+}
+
+.chip.selected {
+  border-color: var(--shu);
+  background: var(--shu);
+  color: #FBF6EC;
+}
+
+.ask-btn {
+  display: block;
+  width: 100%;
+  margin-top: 1.2rem;
+  padding: 0.95rem;
+  font-family: inherit;
+  font-size: 1.1rem;
+  font-weight: 700;
+  letter-spacing: 0.3em;
+  border: none;
+  border-radius: 12px;
+  background: var(--shu);
+  color: #FBF6EC;
+  cursor: pointer;
+}
+
+.ask-btn:active {
+  background: var(--shu-bright);
+}
+
+/* ---------- 相談結果 ---------- */
+
+.result-area {
+  margin-top: 1.6rem;
+}
+
+.result-lead {
+  font-size: 0.95rem;
+  color: var(--sumi-soft);
+  margin-bottom: 1rem;
+  padding-left: 0.8rem;
+  border-left: 3px solid var(--shu);
+}
+
+.passage-card {
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  padding: 1.1rem 1.2rem;
+  margin-bottom: 1.1rem;
+  box-shadow: 0 1px 4px rgba(43, 42, 38, 0.06);
+}
+
+.passage-chapter {
+  display: inline-block;
+  font-size: 0.75rem;
+  letter-spacing: 0.15em;
+  color: #FBF6EC;
+  background: var(--kin);
+  border-radius: 4px;
+  padding: 0.1rem 0.55rem;
+  margin-bottom: 0.6rem;
+}
+
+.passage-kanbun {
+  font-size: 1.08rem;
+  font-weight: 700;
+  line-height: 2;
+  margin-bottom: 0.35rem;
+}
+
+.passage-yomi {
+  font-size: 0.88rem;
+  color: var(--sumi-soft);
+  margin-bottom: 0.8rem;
+}
+
+.passage-section-title {
+  font-size: 0.78rem;
+  font-weight: 700;
+  letter-spacing: 0.2em;
+  color: var(--shu);
+  margin: 0.8rem 0 0.2rem;
+}
+
+.passage-gendai,
+.passage-advice {
+  font-size: 0.95rem;
+}
+
+.passage-advice {
+  background: var(--washi-deep);
+  border-radius: 8px;
+  padding: 0.7rem 0.9rem;
+  margin-top: 0.2rem;
+}
+
+.text-btn {
+  display: block;
+  margin: 1.2rem auto 0;
+  font-family: inherit;
+  font-size: 0.9rem;
+  color: var(--shu);
+  background: none;
+  border: none;
+  text-decoration: underline;
+  cursor: pointer;
+}
+
+/* ---------- 今日の一節 ---------- */
+
+.daily-box {
+  background: var(--card);
+  border: 1.5px solid var(--kin);
+  border-radius: 12px;
+  padding: 1rem 1.2rem;
+  margin-bottom: 1.4rem;
+}
+
+.daily-title {
+  font-size: 0.8rem;
+  font-weight: 700;
+  letter-spacing: 0.3em;
+  color: var(--kin);
+  margin-bottom: 0.4rem;
+}
+
+/* ---------- 篇リスト ---------- */
+
+.chapter-list details {
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  margin-bottom: 0.6rem;
+  overflow: hidden;
+}
+
+.chapter-list summary {
+  list-style: none;
+  cursor: pointer;
+  padding: 0.85rem 1rem;
+  display: flex;
+  align-items: baseline;
+  gap: 0.7rem;
+}
+
+.chapter-list summary::-webkit-details-marker {
+  display: none;
+}
+
+.chapter-no {
+  font-size: 0.75rem;
+  color: #FBF6EC;
+  background: var(--shu);
+  border-radius: 4px;
+  padding: 0.1rem 0.5rem;
+  white-space: nowrap;
+}
+
+.chapter-name {
+  font-weight: 700;
+  font-size: 1rem;
+}
+
+.chapter-desc {
+  font-size: 0.78rem;
+  color: var(--sumi-soft);
+}
+
+.chapter-body {
+  border-top: 1px dashed var(--line);
+  padding: 0.9rem 1rem;
+}
+
+.chapter-body .passage-card {
+  box-shadow: none;
+  margin-bottom: 0.9rem;
+}
+
+.chapter-body .passage-card:last-child {
+  margin-bottom: 0;
+}
+
+.chapter-empty {
+  font-size: 0.85rem;
+  color: var(--sumi-soft);
+}
+
+/* ---------- フッター ---------- */
+
+.app-footer {
+  text-align: center;
+  font-size: 0.7rem;
+  color: var(--sumi-soft);
+  padding: 1rem;
+  border-top: 1px solid var(--line);
+}
