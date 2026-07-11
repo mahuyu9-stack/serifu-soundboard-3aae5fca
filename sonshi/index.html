@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="robots" content="noindex, nofollow">
+<title>孫子に聞け ― 悩み相談と現代語訳</title>
+<link rel="manifest" href="manifest.json">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="theme-color" content="#8C2F1B">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<header class="app-header">
+  <h1><span class="header-mark">孫</span>孫子に聞け</h1>
+  <p class="header-sub">二千五百年前の兵法書が、あなたの悩みに答える</p>
+  <nav class="tabs">
+    <button id="tabConsult" class="tab-btn active" type="button">相談する</button>
+    <button id="tabRead" class="tab-btn" type="button">兵法を読む</button>
+  </nav>
+</header>
+
+<main>
+  <!-- 相談タブ -->
+  <section id="consultView" class="view">
+    <div class="consult-box">
+      <label class="field-label" for="worryInput">いまの悩み・質問を書いてください</label>
+      <textarea id="worryInput" rows="4" maxlength="300"
+        placeholder="例：職場に苦手な人がいて毎日つらい／転職するか迷っている／プレゼン本番が不安…"></textarea>
+
+      <p class="chips-label">または、悩みの種類から選ぶ：</p>
+      <div id="categoryChips" class="chips"></div>
+
+      <button id="askBtn" class="ask-btn" type="button">兵法に問う</button>
+    </div>
+
+    <div id="resultArea" class="result-area" hidden>
+      <p id="resultLead" class="result-lead"></p>
+      <div id="resultList"></div>
+      <button id="againBtn" class="text-btn" type="button">別の悩みを相談する</button>
+    </div>
+  </section>
+
+  <!-- 現代語訳タブ -->
+  <section id="readView" class="view" hidden>
+    <div class="daily-box">
+      <p class="daily-title">今日の一節</p>
+      <div id="dailyPassage"></div>
+    </div>
+    <div id="chapterList" class="chapter-list"></div>
+  </section>
+</main>
+
+<footer class="app-footer">
+  <p>出典：『孫子』(紀元前5世紀頃・孫武)。原文はパブリックドメイン、現代語訳・たとえは本ツールによる意訳です。</p>
+</footer>
+
+<script src="data.js"></script>
+<script src="app.js"></script>
+</body>
+</html>
