@@ -1,0 +1,15 @@
+{
+  "name": "孫子に聞け",
+  "short_name": "孫子に聞け",
+  "description": "悩みや質問を孫子の兵法の一節で例えてアドバイスし、全13篇の現代語訳も読めるツール",
+  "start_url": "./index.html",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#F6F1E7",
+  "theme_color": "#8C2F1B",
+  "icons": [
+    { "src": "icon-192.png", "sizes": "192x192", "type": "image/png" },
+    { "src": "icon-512.png", "sizes": "512x512", "type": "image/png" }
+  ]
+}

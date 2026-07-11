@@ -230,6 +230,14 @@ function init() {
   document.getElementById("againBtn").addEventListener("click", resetConsult);
   document.getElementById("tabConsult").addEventListener("click", () => switchTab("consult"));
   document.getElementById("tabRead").addEventListener("click", () => switchTab("read"));
+
+  if ("serviceWorker" in navigator) {
+    window.addEventListener("load", () => {
+      navigator.serviceWorker.register("sw.js").catch((err) => {
+        console.error("Service Workerの登録に失敗しました", err);
+      });
+    });
+  }
 }
 
 init();
