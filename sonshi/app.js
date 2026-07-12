@@ -7,16 +7,17 @@
  * 上位の一節を「孫子ならこう例える」形式で提示する。
  */
 
-// 悩みカテゴリチップ。選ぶとそのキーワード群が採点に加算される。
+// 悩みカテゴリチップ。選ぶとそのキーワード群が採点に加算され、
+// genreのジャンル見立ても強制的に有効になる。
 const CATEGORIES = [
-  { label: "仕事・キャリア", keywords: ["転職", "キャリア", "昇進", "評価", "上司", "起業"] },
-  { label: "人間関係", keywords: ["人間関係", "苦手な人", "喧嘩", "職場", "合わない", "同僚"] },
-  { label: "競争・ライバル", keywords: ["ライバル", "競争", "勝てない", "比べ", "差別化"] },
-  { label: "決断・迷い", keywords: ["迷い", "決断", "選択", "どっち", "選べない"] },
-  { label: "不安・メンタル", keywords: ["不安", "心配", "焦り", "怒り", "疲れ", "イライラ"] },
-  { label: "チーム・部下", keywords: ["部下", "後輩", "チーム", "マネジメント", "指導", "新人"] },
-  { label: "恋愛・家庭", keywords: ["片思い", "告白", "夫婦", "パートナー", "子育て", "子ども"] },
-  { label: "勉強・成長", keywords: ["勉強法", "試験", "受験", "基礎", "資格", "習慣"] },
+  { label: "仕事・キャリア", genre: "work", keywords: ["転職", "キャリア", "昇進", "評価", "上司", "起業"] },
+  { label: "人間関係", genre: "relations", keywords: ["人間関係", "苦手な人", "喧嘩", "職場", "合わない", "同僚"] },
+  { label: "競争・ライバル", genre: "work", keywords: ["ライバル", "競争", "勝てない", "比べ", "差別化"] },
+  { label: "決断・迷い", genre: "self", keywords: ["迷い", "決断", "選択", "どっち", "選べない"] },
+  { label: "不安・メンタル", genre: "mental", keywords: ["不安", "心配", "焦り", "怒り", "疲れ", "イライラ"] },
+  { label: "チーム・部下", genre: "work", keywords: ["部下", "後輩", "チーム", "マネジメント", "指導", "新人"] },
+  { label: "恋愛・家庭", genre: "love", keywords: ["片思い", "告白", "夫婦", "パートナー", "子育て", "子ども"] },
+  { label: "勉強・成長", genre: "self", keywords: ["勉強法", "試験", "受験", "基礎", "資格", "習慣"] },
 ];
 
 const selectedCategories = new Set();
@@ -37,13 +38,41 @@ function scorePassage(passage, text, extraKeywords) {
   return score;
 }
 
-// 同点の一節は相談のたびに順序が入れ替わるよう、乱数タイブレークを入れる
-function findMatches(text, extraKeywords) {
+// 同点の一節は相談のたびに順序が入れ替わるよう、乱数タイブレークを入れる。
+// bonusMapはジャンル判定による加点(そのジャンル向けの一節を浮上させる)。
+function findMatches(text, extraKeywords, bonusMap) {
   return SONSHI_PASSAGES
-    .map((p) => ({ passage: p, score: scorePassage(p, text, extraKeywords), tie: Math.random() }))
+    .map((p) => ({
+      passage: p,
+      score: scorePassage(p, text, extraKeywords) + (bonusMap[p.id] || 0),
+      tie: Math.random(),
+    }))
     .filter((s) => s.score > 0)
     .sort((a, b) => b.score - a.score || b.tie - a.tie)
     .map((s) => s.passage);
+}
+
+// ---------- 悩みジャンルの判定 ----------
+// 入力文とジャンル定義のキーワードを突き合わせ、当たりの多い順に最大2ジャンル返す。
+// 具体的な(長い)語ほど高得点にするのはタグ採点と同じ方針。
+function detectGenres(text, selectedLabels) {
+  const scored = SONSHI_GENRES
+    .map((g) => ({
+      genre: g,
+      score: g.keywords.reduce((sum, kw) => sum + (text.includes(kw) ? kw.length + 1 : 0), 0),
+    }))
+    .filter((s) => s.score > 0)
+    .sort((a, b) => b.score - a.score)
+    .slice(0, 2)
+    .map((s) => s.genre);
+
+  // カテゴリチップで選ばれたジャンルは、文中に語がなくても見立てに含める
+  for (const label of selectedLabels) {
+    const category = CATEGORIES.find((c) => c.label === label);
+    const genre = SONSHI_GENRES.find((g) => g.id === category.genre);
+    if (genre && !scored.includes(genre)) scored.push(genre);
+  }
+  return scored.slice(0, 2);
 }
 
 // どのタグにも当たらなかったときに提示する、悩み全般に効く一節のプール
@@ -75,7 +104,7 @@ function pickRandom(arr) {
 }
 
 // 直近の相談の候補リストと表示位置。「別の一節で聞き直す」で次の3つに進む。
-let consultState = { matches: [], offset: 0, fallback: false };
+let consultState = { matches: [], offset: 0, fallback: false, genres: [] };
 
 function consult() {
   const text = document.getElementById("worryInput").value.trim();
@@ -88,27 +117,52 @@ function consult() {
     return;
   }
 
-  let matches = findMatches(text, extraKeywords);
+  // ジャンルを判定し、そのジャンル向けの一節に加点する(第1ジャンル+5、第2+3)
+  const genres = detectGenres(text, [...selectedCategories]);
+  const bonusMap = {};
+  genres.forEach((genre, rank) => {
+    genre.recommends.forEach((id) => {
+      bonusMap[id] = Math.max(bonusMap[id] || 0, rank === 0 ? 5 : 3);
+    });
+  });
+
+  let matches = findMatches(text, extraKeywords, bonusMap);
   let fallback = false;
   if (matches.length === 0) {
-    fallback = true;
-    matches = FALLBACK_IDS
-      .map((id) => SONSHI_PASSAGES.find((p) => p.id === id))
-      .sort(() => Math.random() - 0.5);
+    if (genres.length > 0) {
+      // 個別タグには当たらなくてもジャンルは分かる場合、そのジャンルの推薦節を出す
+      matches = genres[0].recommends.map((id) => SONSHI_PASSAGES.find((p) => p.id === id));
+    } else {
+      fallback = true;
+      matches = FALLBACK_IDS
+        .map((id) => SONSHI_PASSAGES.find((p) => p.id === id))
+        .sort(() => Math.random() - 0.5);
+    }
   }
 
-  consultState = { matches, offset: 0, fallback };
+  consultState = { matches, offset: 0, fallback, genres };
   showConsultResults();
   document.getElementById("resultArea").scrollIntoView({ behavior: "smooth", block: "start" });
 }
 
 function showConsultResults() {
-  const { matches, offset, fallback } = consultState;
+  const { matches, offset, fallback, genres } = consultState;
   const picks = matches.slice(offset, offset + 3);
 
   const list = document.getElementById("resultList");
   list.innerHTML = "";
   picks.forEach((p) => list.appendChild(buildPassageCard(p, true)));
+
+  // ジャンルが判定できたときは「軍師の見立て」(ジャンル別の総論)を先頭に出す
+  const genreBox = document.getElementById("genreBox");
+  if (genres.length > 0) {
+    document.getElementById("genreTitle").textContent =
+      "軍師の見立て:" + genres.map((g) => g.label).join(" × ") + "の戦局";
+    document.getElementById("genreAdvice").textContent = genres[0].generic;
+    genreBox.hidden = false;
+  } else {
+    genreBox.hidden = true;
+  }
 
   document.getElementById("resultLead").textContent = fallback
     ? pickRandom(FALLBACK_LEADS)
