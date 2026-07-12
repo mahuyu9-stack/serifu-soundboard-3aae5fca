@@ -189,6 +189,26 @@ textarea:focus {
   border-left: 3px solid var(--shu);
 }
 
+.genre-box {
+  background: var(--washi-deep);
+  border-left: 4px solid var(--shu);
+  border-radius: 0 10px 10px 0;
+  padding: 0.9rem 1.1rem;
+  margin-bottom: 1.1rem;
+}
+
+.genre-title {
+  font-size: 0.85rem;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  color: var(--shu);
+  margin-bottom: 0.35rem;
+}
+
+.genre-advice {
+  font-size: 0.92rem;
+}
+
 .passage-card {
   background: var(--card);
   border: 1px solid var(--line);
