@@ -37,16 +37,45 @@ function scorePassage(passage, text, extraKeywords) {
   return score;
 }
 
-function findMatches(text, extraKeywords, limit) {
-  const scored = SONSHI_PASSAGES
-    .map((p) => ({ passage: p, score: scorePassage(p, text, extraKeywords) }))
+// 同点の一節は相談のたびに順序が入れ替わるよう、乱数タイブレークを入れる
+function findMatches(text, extraKeywords) {
+  return SONSHI_PASSAGES
+    .map((p) => ({ passage: p, score: scorePassage(p, text, extraKeywords), tie: Math.random() }))
     .filter((s) => s.score > 0)
-    .sort((a, b) => b.score - a.score);
-  return scored.slice(0, limit).map((s) => s.passage);
+    .sort((a, b) => b.score - a.score || b.tie - a.tie)
+    .map((s) => s.passage);
 }
 
-// どのタグにも当たらなかったときに提示する、悩み全般に効く一節
-const FALLBACK_IDS = ["boukou-chihi", "kyuhen-rigai", "sakusen-sessoku"];
+// どのタグにも当たらなかったときに提示する、悩み全般に効く一節のプール
+const FALLBACK_IDS = [
+  "boukou-chihi",
+  "kyuhen-rigai",
+  "sakusen-sessoku",
+  "gunkei-fukashou",
+  "kyojitsu-mizu",
+  "kyuhen-tanomu",
+];
+
+// 同じ答えでも切り出しが毎回変わるよう、出だし文を数種類用意する
+const LEAD_VARIATIONS = [
+  "その悩み、孫子の兵法ではこう考えます ―",
+  "二千五百年前の軍師の見立てはこうです ―",
+  "兵法書をめくると、この局面に効く一節がありました ―",
+  "孫子が陣中からあなたに送る答えは ―",
+  "その戦況、兵法ではすでに答えが出ています ―",
+];
+
+const FALLBACK_LEADS = [
+  "ぴったりの一節は見つかりませんでしたが、どんな悩みにも効く節を ―",
+  "その悩みに直接答える節はありませんでしたが、軍師の基本はこちら ―",
+];
+
+function pickRandom(arr) {
+  return arr[Math.floor(Math.random() * arr.length)];
+}
+
+// 直近の相談の候補リストと表示位置。「別の一節で聞き直す」で次の3つに進む。
+let consultState = { matches: [], offset: 0, fallback: false };
 
 function consult() {
   const text = document.getElementById("worryInput").value.trim();
@@ -59,22 +88,40 @@ function consult() {
     return;
   }
 
-  let matches = findMatches(text, extraKeywords, 3);
-  let lead;
-
-  if (matches.length > 0) {
-    lead = "その悩み、孫子の兵法ではこう考えます ―";
-  } else {
-    matches = FALLBACK_IDS.map((id) => SONSHI_PASSAGES.find((p) => p.id === id));
-    lead = "ぴったりの一節は見つかりませんでしたが、どんな悩みにも効く基本の三節を ―";
+  let matches = findMatches(text, extraKeywords);
+  let fallback = false;
+  if (matches.length === 0) {
+    fallback = true;
+    matches = FALLBACK_IDS
+      .map((id) => SONSHI_PASSAGES.find((p) => p.id === id))
+      .sort(() => Math.random() - 0.5);
   }
+
+  consultState = { matches, offset: 0, fallback };
+  showConsultResults();
+  document.getElementById("resultArea").scrollIntoView({ behavior: "smooth", block: "start" });
+}
+
+function showConsultResults() {
+  const { matches, offset, fallback } = consultState;
+  const picks = matches.slice(offset, offset + 3);
 
   const list = document.getElementById("resultList");
   list.innerHTML = "";
-  matches.forEach((p) => list.appendChild(buildPassageCard(p, true)));
+  picks.forEach((p) => list.appendChild(buildPassageCard(p, true)));
 
-  document.getElementById("resultLead").textContent = lead;
+  document.getElementById("resultLead").textContent = fallback
+    ? pickRandom(FALLBACK_LEADS)
+    : pickRandom(LEAD_VARIATIONS);
+  document.getElementById("rerollBtn").hidden = matches.length <= 3;
   document.getElementById("resultArea").hidden = false;
+}
+
+// 候補リストの次の3つを表示する。末尾まで来たら先頭に戻る。
+function rerollConsult() {
+  const next = consultState.offset + 3;
+  consultState.offset = next >= consultState.matches.length ? 0 : next;
+  showConsultResults();
   document.getElementById("resultArea").scrollIntoView({ behavior: "smooth", block: "start" });
 }
 
@@ -227,6 +274,7 @@ function init() {
   renderChapterList();
 
   document.getElementById("askBtn").addEventListener("click", consult);
+  document.getElementById("rerollBtn").addEventListener("click", rerollConsult);
   document.getElementById("againBtn").addEventListener("click", resetConsult);
   document.getElementById("tabConsult").addEventListener("click", () => switchTab("consult"));
   document.getElementById("tabRead").addEventListener("click", () => switchTab("read"));
